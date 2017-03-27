@@ -15,6 +15,9 @@ import static org.hamcrest.Matchers.is;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 public class MockSystemOutputShould {
 
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
@@ -57,13 +60,14 @@ public class MockSystemOutputShould {
 	}
 
 	@Test
-	@Ignore
 	public void saving_output_in_file_and_compare() {
 		final MockSystemOutput systemOutput = MockSystemOutput.inject();
 		System.out.println(MESSAGE);
 		System.out.println(ANOTHER_MESSAGE);
 
-		assertThat(systemOutput.toString(), isEqualsAsPreviousIn("/tmp/file.expected"));
+		ClassLoader classLoader = getClass().getClassLoader();
+        String stringPath = classLoader.getResource("file.expected").getPath();
+		assertThat(systemOutput.toString(), isEqualsAsPreviousIn(Paths.get(stringPath)));
 	}
 
 	private String addLineSeparatorTo(final String... string) {

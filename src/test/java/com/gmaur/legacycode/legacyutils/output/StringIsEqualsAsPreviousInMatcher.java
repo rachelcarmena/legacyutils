@@ -7,7 +7,7 @@ package com.gmaur.legacycode.legacyutils.output;
  *
  *	Subject to terms and condition provided in LICENSE
  *
- *  Acknowledgments: Rachel, my first apprentice craftswoman
+ *  Acknowledgments: Rachel
  */
 
 import org.hamcrest.Description;
@@ -15,26 +15,28 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 public class StringIsEqualsAsPreviousInMatcher extends TypeSafeDiagnosingMatcher<String> {
 
-    private static final String INSTEAD_OF = " <instead of> ";
-    private static final String EMPTY_LINE = "-empty line-";
-    private static final String DESCRIPTION_LINE_SEPARATOR = "\n\t\t\t";
-    private String fileName;
+    private static final String LINE_SEPARATOR_AND_WHITESPACES = System.getProperty("line.separator") + String.format("%8s", "");
+    private Path path;
 
-    public StringIsEqualsAsPreviousInMatcher(String fileName) {
-        this.fileName = fileName;
+    public StringIsEqualsAsPreviousInMatcher(Path path) {
+        this.path = path;
     }
 
-    public static StringIsEqualsAsPreviousInMatcher isEqualsAsPreviousIn(String fileName) {
-        return new StringIsEqualsAsPreviousInMatcher(fileName);
+    public static StringIsEqualsAsPreviousInMatcher isEqualsAsPreviousIn(Path path) {
+        return new StringIsEqualsAsPreviousInMatcher(path);
     }
 
     @Override
     protected boolean matchesSafely(String consoleOutput, Description description) {
         try {
-            File previousFile = new File(fileName);
+            File previousFile = path.toFile();
             File directoryOfPreviousFiles = new File(previousFile.getParent());
             if (!directoryOfPreviousFiles.exists()) {
                 description.appendText("Create the directory: " + previousFile.getParent());
@@ -42,11 +44,8 @@ public class StringIsEqualsAsPreviousInMatcher extends TypeSafeDiagnosingMatcher
             }
             if (previousFile.isFile()) {
                 String previousFileContent = getStringFrom(previousFile);
-                boolean equals = previousFileContent.equals(consoleOutput);
-                if (!equals) {
-                    searchAndInformAboutDifferences(consoleOutput, previousFileContent, description);
-                }
-                return equals;
+                assertThat(consoleOutput, is(previousFileContent));
+                return true;
             }
             writeConsoleOutputInFile(consoleOutput);
         } catch (IOException e) {
@@ -57,39 +56,17 @@ public class StringIsEqualsAsPreviousInMatcher extends TypeSafeDiagnosingMatcher
 
     @Override
     public void describeTo(Description description) {
-        description.appendText("a string with the same content as " + fileName);
-        description.appendText(DESCRIPTION_LINE_SEPARATOR);
-        description.appendText("(one execution is required)");
+        description.appendText("a string with the same content as " + path.toString());
+        description.appendText(LINE_SEPARATOR_AND_WHITESPACES);
+        description.appendText("Maybe, one first execution is required");
     }
 
     private String getStringFrom(File previousFile) throws IOException {
         return new String(Files.readAllBytes(previousFile.toPath()));
     }
 
-    private void searchAndInformAboutDifferences(String consoleOutput, String fileContent, Description description) throws IOException {
-        BufferedReader consoleOutputReader = new BufferedReader(new StringReader(consoleOutput));
-        BufferedReader fileContentReader = new BufferedReader(new StringReader(fileContent));
-        String consoleOutputLine, fileContentLine;
-        while ((consoleOutputLine = consoleOutputReader.readLine()) != null) {
-            fileContentLine = fileContentReader.readLine();
-            if (!consoleOutputLine.equals(fileContentLine)) {
-                informAboutDifferentLines(consoleOutputLine, fileContentLine, description);
-            }
-        }
-        while ((fileContentLine = fileContentReader.readLine()) != null) {
-            informAboutDifferentLines(EMPTY_LINE, fileContentLine, description);
-        }
-    }
-
-    private void informAboutDifferentLines(String actual, String expected, Description description) {
-        description.appendValue(actual);
-        description.appendText(INSTEAD_OF);
-        description.appendValue(expected);
-        description.appendText(DESCRIPTION_LINE_SEPARATOR);
-    }
-
     private void writeConsoleOutputInFile(String consoleOutput) throws IOException {
-        try (FileWriter fw = new FileWriter(fileName, false);
+        try (FileWriter fw = new FileWriter(path.toString(), false);
              BufferedWriter bw = new BufferedWriter(fw)) {
             bw.write(consoleOutput);
         }
