@@ -65,9 +65,7 @@ public class MockSystemOutputShould {
 		System.out.println(MESSAGE);
 		System.out.println(ANOTHER_MESSAGE);
 
-		ClassLoader classLoader = getClass().getClassLoader();
-        String stringPath = classLoader.getResource("file.expected").getPath();
-		assertThat(systemOutput.toString(), isEqualsAsPreviousIn(Paths.get(stringPath)));
+		assertThat(systemOutput.toString(), isEqualsAsPreviousIn("file.expected"));
 	}
 
 	private String addLineSeparatorTo(final String... string) {

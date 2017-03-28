@@ -7,47 +7,50 @@ package com.gmaur.legacycode.legacyutils.output;
  *
  *	Subject to terms and condition provided in LICENSE
  *
- *  Acknowledgments: Rachel
+ *	Acknowledgments: Rachel
  */
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 public class StringIsEqualsAsPreviousInMatcher extends TypeSafeDiagnosingMatcher<String> {
 
-    private static final String LINE_SEPARATOR_AND_WHITESPACES = System.getProperty("line.separator") + String.format("%8s", "");
-    private Path path;
+    private String fileName;
 
-    public StringIsEqualsAsPreviousInMatcher(Path path) {
-        this.path = path;
+    public StringIsEqualsAsPreviousInMatcher(String fileName) {
+        this.fileName = fileName;
     }
 
-    public static StringIsEqualsAsPreviousInMatcher isEqualsAsPreviousIn(Path path) {
-        return new StringIsEqualsAsPreviousInMatcher(path);
+    public static StringIsEqualsAsPreviousInMatcher isEqualsAsPreviousIn(String fileName) {
+        return new StringIsEqualsAsPreviousInMatcher(fileName);
     }
 
     @Override
     protected boolean matchesSafely(String consoleOutput, Description description) {
         try {
-            File previousFile = path.toFile();
-            File directoryOfPreviousFiles = new File(previousFile.getParent());
-            if (!directoryOfPreviousFiles.exists()) {
-                description.appendText("Create the directory: " + previousFile.getParent());
+            ClassLoader classLoader = getClass().getClassLoader();
+            URL resource = classLoader.getResource(fileName);
+            if (resource == null) {
+                description.appendText("One first execution is required");
+                writeConsoleOutputInFile(consoleOutput);
                 return false;
             }
-            if (previousFile.isFile()) {
-                String previousFileContent = getStringFrom(previousFile);
-                assertThat(consoleOutput, is(previousFileContent));
-                return true;
-            }
-            writeConsoleOutputInFile(consoleOutput);
+            String previousFilePathString = resource.getPath();
+            Path previousFilePath = Paths.get(previousFilePathString);
+            String previousFileContent = getStringFrom(previousFilePath);
+            assertThat(consoleOutput, is(previousFileContent));
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -56,16 +59,15 @@ public class StringIsEqualsAsPreviousInMatcher extends TypeSafeDiagnosingMatcher
 
     @Override
     public void describeTo(Description description) {
-        description.appendText("a string with the same content as " + path.toString());
-        description.appendText(LINE_SEPARATOR_AND_WHITESPACES);
-        description.appendText("Maybe, one first execution is required");
+        description.appendText("a string with the same content as " + fileName);
     }
 
-    private String getStringFrom(File previousFile) throws IOException {
-        return new String(Files.readAllBytes(previousFile.toPath()));
+    private String getStringFrom(Path previousFilePath) throws IOException {
+        return new String(Files.readAllBytes(previousFilePath));
     }
 
     private void writeConsoleOutputInFile(String consoleOutput) throws IOException {
+        Path path = Paths.get("src", "test", "resources", fileName);
         try (FileWriter fw = new FileWriter(path.toString(), false);
              BufferedWriter bw = new BufferedWriter(fw)) {
             bw.write(consoleOutput);
